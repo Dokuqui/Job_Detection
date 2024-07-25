@@ -1,0 +1,7 @@
+{
+    "jobPattern" : [
+        "^/runner-.*-project-.*-concurrent-.*-.*-build$",
+        "^/runner-.*-project-.*-concurrent-.*-.*-test$",
+        "^/runner-.*-project-.*-concurrent-.*-.*-deploy$"
+    ]
+}

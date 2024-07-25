@@ -1,0 +1,27 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+before_script:
+  - echo "Running before_script steps..."
+  - apk update
+  - apk add --no-cache docker-compose
+
+build:
+  stage: build
+  tags:
+    - local
+  script:
+    - echo "Starting Docker Compose..."
+    - echo "JOB_ID:$CI_JOB_ID"
+    - docker-compose up -d
+    - echo "Docker Compose services started."
+    - docker-compose ps
+    - sleep 180  # Keep the job running for at least 3 minutes
+  artifacts:
+    paths:
+      - main
