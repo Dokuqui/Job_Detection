@@ -1,0 +1,49 @@
+name: Docker Cleanup Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:19.03.12
+        options: --privileged
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+        env:
+          CI_JOB_ID: ${{ github.run_id }}
+
+      - name: Start Docker Compose
+        run: |
+          echo "Starting Docker Compose..."
+          docker-compose up -d
+          echo "Docker Compose services started."
+      
+      - name: Run Go Script
+        run: |
+          go run main.go
+        env:
+          CI_JOB_ID: ${{ github.run_id }}
+
+      - name: Wait
+        run: sleep 180  # Adjust as needed
+
+      ### This step is unessary because should be down via script 
+      ### during clean up after job finished
+      - name: Stop Docker Compose and Clean Up
+        run: |
+          echo "Stopping Docker Compose..."
+          docker-compose down
+          echo "Docker Compose services stopped."

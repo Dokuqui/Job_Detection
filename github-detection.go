@@ -182,7 +182,7 @@ func cleanupContainers(cli *client.Client, ctx context.Context, containerID stri
     }
 
     for _, container := range containers {
-        if container.Labels["com.gitlab.ci.job.id"] == containerID {
+        if container.Labels["com.github.ci.job.id"] == containerID {
             if container.State == "running" {
                 if err := cli.ContainerStop(ctx, container.ID, stopOptions); err != nil {
                     log.Printf("Failed to stop container %s: %v", container.ID, err)
@@ -206,7 +206,7 @@ func cleanupNetworks(cli *client.Client, ctx context.Context, containerID string
     }
 
     for _, network := range networks {
-        if len(network.Containers) == 0 && network.Labels["com.gitlab.ci.job.id"] == containerID {
+        if len(network.Containers) == 0 && network.Labels["com.github.ci.job.id"] == containerID {
             if err := cli.NetworkRemove(ctx, network.ID); err != nil {
                 log.Printf("Failed to remove network %s: %v", network.ID, err)
             }
@@ -218,7 +218,7 @@ func cleanupNetworks(cli *client.Client, ctx context.Context, containerID string
 
 func cleanupVolumes(cli *client.Client, ctx context.Context, containerID string) error {
     volumeFilter := filters.NewArgs()
-    volumeFilter.Add("label", fmt.Sprintf("com.gitlab.ci.job.id=%s", containerID))
+    volumeFilter.Add("label", fmt.Sprintf("com.github.ci.job.id=%s", containerID))
 
     volumes, err := cli.VolumeList(ctx, volume.ListOptions{Filters: volumeFilter})
     if err != nil {
@@ -226,7 +226,7 @@ func cleanupVolumes(cli *client.Client, ctx context.Context, containerID string)
     }
 
     for _, volume := range volumes.Volumes {
-        if volume.Labels["com.gitlab.ci.job.id"] == containerID {
+        if volume.Labels["com.github.ci.job.id"] == containerID {
             if err := cli.VolumeRemove(ctx, volume.Name, true); err != nil {
                 log.Printf("Failed to remove volume %s: %v", volume.Name, err)
             }
