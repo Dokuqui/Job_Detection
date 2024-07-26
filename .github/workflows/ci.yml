@@ -35,7 +35,7 @@ jobs:
       ### manually with local working runner (Github or Gitlab)
       - name: Build Go Script
         run: |
-          go build -o github-detetion.go
+          go build -o github-detection.go
         env:
           CI_JOB_ID: ${{ github.run_id }}
 
