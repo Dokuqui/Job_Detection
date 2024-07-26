@@ -31,9 +31,11 @@ jobs:
           docker-compose up -d
           echo "Docker Compose services started."
       
-      - name: Run Go Script
+      ### No need to run because for now it should be done
+      ### manually with local working runner (Github or Gitlab)
+      - name: Build Go Script
         run: |
-          go run main.go
+          go build -o github-detetion.go
         env:
           CI_JOB_ID: ${{ github.run_id }}
 
