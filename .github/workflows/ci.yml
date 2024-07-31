@@ -7,12 +7,8 @@ on:
   pull_request:
 
 jobs:
-  build:
+  setup:
     runs-on: ubuntu-latest
-    services:
-      docker:
-        image: docker:19.03.12
-        options: --privileged
 
     steps:
       - name: Checkout code
@@ -22,10 +18,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
-        env:
-          CI_JOB_ID: ${{ github.run_id }}
 
-      
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -44,28 +37,81 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
-      - name: Start Docker Compose
+      - name: Check for Null Bytes
         run: |
-          echo "Starting Docker Compose..."
-          docker-compose up -d
-          echo "Docker Compose services started."
-      
-      - name: Build Go Script
-        run: |
-          go build -o github-detection.go
-        env:
-          CI_JOB_ID: ${{ github.run_id }}
+          if grep -rP '\x00' .; then
+            echo "Null byte found in one of the files"
+            exit 1
+          else
+            echo "No null byte found in any files"
+          fi
+
+  test:
+    runs-on: ubuntu-latest
+    needs: setup
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
 
       - name: Run tests
         run: go test -v ./...
 
-      - name: Wait
-        run: sleep 180
+  build:
+    runs-on: ubuntu-latest
+    needs: setup
 
-      ### No need to run because for now it should be done
-      ### manually with local working runner (Github or Gitlab)
-      ### This step is unnecessary because it should be done via script 
-      ### during clean up after the job is finished
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build Go Application
+        run: go build -o github-detection github-detection.go
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Stop Docker Compose and Clean Up
         run: |
           echo "Stopping Docker Compose..."
