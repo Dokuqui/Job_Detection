@@ -57,7 +57,7 @@ jobs:
           CI_JOB_ID: ${{ github.run_id }}
 
       - name: Run tests
-        run: go test -v ./tests
+        run: go test -v ./...
 
       - name: Wait
         run: sleep 180

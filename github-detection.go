@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/client"
-	"job-detection.is/github-gitlab/functions"
+	"job-detection.is/github-gitlab/events"
 )
 
 type Config struct {
@@ -15,7 +15,7 @@ type Config struct {
 }
 
 func main() {
-	config, err := functions.LoadConfig("/patterns/jobPattern.json")
+	config, err := events.LoadConfig("/patterns/jobPattern.json")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -25,13 +25,13 @@ func main() {
 		log.Fatalf("Failed to create Docker client: %v", err)
 	}
 
-	eventCh, errCh := functions.MonitorContainerEvents(cli)
+	eventCh, errCh := events.MonitorContainerEvents(cli)
 
 	go func() {
 		for {
 			select {
 			case event := <-eventCh:
-				functions.HandleEvent(cli, event, config.JobPatterns)
+				events.HandleEvent(cli, event, config.JobPatterns)
 			case err := <-errCh:
 				log.Printf("Error in Docker event monitoring: %v", err)
 			}
