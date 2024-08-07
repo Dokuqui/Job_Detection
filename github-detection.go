@@ -15,7 +15,7 @@ type Config struct {
 }
 
 func main() {
-	config, err := events.LoadConfig("/patterns/jobPattern.json")
+	config, err := events.LoadConfig("jobPattern.json")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -42,5 +42,7 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 
-	cli.Close()
+	if err := cli.Close(); err != nil {
+		log.Printf("Error closing Docker client: %v", err)
+	}
 }

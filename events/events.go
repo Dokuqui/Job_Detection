@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/docker/docker/api/types/events"
@@ -34,7 +35,9 @@ type Config struct {
 // - *Config: The configuration structure.
 // - error: An error if the file could not be opened or the JSON could not be decoded.
 func LoadConfig(filename string) (*Config, error) {
-	file, err := os.Open(filename)
+	safeFileName := filepath.Clean(filename)
+
+	file, err := os.Open(safeFileName)
 	if err != nil {
 		return nil, err
 	}
