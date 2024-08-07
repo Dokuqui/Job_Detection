@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// cleanUp performs cleanup tasks for the specified container ID, including stopping and removing containers, networks, and volumes.
+// CleanUp performs cleanup tasks for the specified container ID, including stopping and removing containers, networks, and volumes.
 //
 // Parameters:
 // - cli: The Docker client instance.
@@ -59,7 +59,7 @@ func CleanUp(cli *client.Client, containerID string) {
 	log.Println("Cleanup completed.")
 }
 
-// cleanupContainers stops and removes containers associated with the specified container ID.
+// CleanupContainers stops and removes containers associated with the specified container ID.
 //
 // Parameters:
 // - cli: The Docker client instance.
@@ -92,7 +92,7 @@ func CleanupContainers(cli *client.Client, ctx context.Context, containerID stri
 	return nil
 }
 
-// cleanupNetworks removes networks associated with the specified container ID.
+// CleanupNetworks removes networks associated with the specified container ID.
 //
 // Parameters:
 // - cli: The Docker client instance.
@@ -117,7 +117,7 @@ func CleanupNetworks(cli *client.Client, ctx context.Context, containerID string
 	return nil
 }
 
-// cleanupVolumes removes volumes associated with the specified container ID.
+// CleanupVolumes removes volumes associated with the specified container ID.
 //
 // Parameters:
 // - cli: The Docker client instance.
@@ -145,7 +145,7 @@ func CleanupVolumes(cli *client.Client, ctx context.Context, containerID string)
 	return nil
 }
 
-// isDockerComposeUp checks if Docker Compose is managing any containers.
+// IsDockerComposeUp checks if Docker Compose is managing any containers.
 //
 // Parameters:
 // - cli: The Docker client instance.
@@ -174,7 +174,7 @@ func IsDockerComposeManaged(containers []types.Container) bool {
 	return false
 }
 
-// runDockerComposeDown executes the 'docker-compose down' command to stop and remove Docker Compose-managed containers.
+// RunDockerComposeDown executes the 'docker-compose down' command to stop and remove Docker Compose-managed containers.
 //
 // Returns:
 // - error: An error if the command fails to execute.

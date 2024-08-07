@@ -26,7 +26,7 @@ type Config struct {
 	JobPatterns []string `json:"jobPattern"`
 }
 
-// loadConfig loads the configuration from a JSON file.
+// LoadConfig loads the configuration from a JSON file.
 //
 // Parameters:
 // - filename: The path to the JSON configuration file.
@@ -52,7 +52,7 @@ func LoadConfig(filename string) (*Config, error) {
 	return &config, nil
 }
 
-// monitorContainerEvents sets up Docker event monitoring and returns channels for events and errors.
+// MonitorContainerEvents sets up Docker event monitoring and returns channels for events and errors.
 //
 // Parameters:
 // - cli: The Docker client instance.
@@ -92,7 +92,7 @@ func MonitorContainerEvents(cli *client.Client) (<-chan events.Message, <-chan e
 	return eventCh, errCh
 }
 
-// handleEvent processes Docker container events and performs actions based on the event type.
+// HandleEvent processes Docker container events and performs actions based on the event type.
 //
 // Parameters:
 // - cli: The Docker client instance.
@@ -116,7 +116,7 @@ func HandleEvent(cli *client.Client, event events.Message, jobPatterns []string)
 	}
 }
 
-// isJobPattern checks if the container name matches any of the specified job patterns.
+// IsJobPattern checks if the container name matches any of the specified job patterns.
 //
 // Parameters:
 // - cli: The Docker client instance.
