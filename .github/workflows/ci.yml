@@ -14,11 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Compose
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
-
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -149,6 +144,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
       - name: Install dependencies
         run: go mod download
 
@@ -161,16 +161,16 @@ jobs:
       - name: Build Go Application
         run: go build -o github-detection.go
 
-  cleanup:
-    runs-on: ubuntu-latest
-    needs: [test, build]
+  # cleanup:
+  #   runs-on: ubuntu-latest
+  #   needs: [test, build]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Stop Docker Compose and Clean Up
-        run: |
-          echo "Stopping Docker Compose..."
-          docker-compose down
-          echo "Docker Compose services stopped."
+  #     - name: Stop Docker Compose and Clean Up
+  #       run: |
+  #         echo "Stopping Docker Compose..."
+  #         docker-compose down
+  #         echo "Docker Compose services stopped."
