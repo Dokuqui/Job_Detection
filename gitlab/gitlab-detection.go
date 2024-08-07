@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"syscall"
 
@@ -51,11 +52,15 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 
-	cli.Close()
+	if err := cli.Close(); err != nil {
+		log.Printf("Error closing Docker client: %v", err)
+	}
 }
 
 func loadConfig(filename string) (*Config, error) {
-	file, err := os.Open(filename)
+	safeFileName := filepath.Clean(filename)
+
+	file, err := os.Open(safeFileName)
 	if err != nil {
 		return nil, err
 	}
