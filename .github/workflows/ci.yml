@@ -152,6 +152,12 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
+      - name: Start Docker Compose
+        run: docker-compose up -d
+
+      - name: Docker Compose List Containers
+        run: docker-compose ps
+
       - name: Build Go Application
         run: go build -o github-detection.go
 
