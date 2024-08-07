@@ -1,20 +1,53 @@
-image: docker:latest
-
-services:
-  - docker:dind
+image: golang:latest
 
 stages:
+  - format
+  - vet
+  - security
+  # - lint
   - build
+  - test
 
 before_script:
   - echo "Running before_script steps..."
-  - apk update
-  - apk add --no-cache docker-compose
+  - go version
+  - go mod download
+
+format:
+  stage: format
+  tags:
+    - local
+  script:
+    - go fmt ./...
+
+vet:
+  stage: vet
+  tags:
+    - local
+  script:
+    - go vet -json ./...
+
+security:
+  stage: security
+  tags:
+    - local
+  script:
+    - go install github.com/securego/gosec/v2/cmd/gosec@latest
+    - gosec ./...
+    - go install golang.org/x/vuln/cmd/govulncheck@latest
+    - govulncheck ./...
 
 build:
   stage: build
   tags:
     - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Installing Docker Compose..."
+    - apt-get update
+    - apt-get install -y wget curl docker-compose
+    - docker-compose version
   script:
     - echo "Starting Docker Compose..."
     - echo "JOB_ID:$CI_JOB_ID"
@@ -22,6 +55,11 @@ build:
     - echo "Docker Compose services started."
     - docker-compose ps
     - sleep 180  # Keep the job running for at least 3 minutes
-  artifacts:
-    paths:
-      - main
+
+test:
+  stage: test
+  tags:
+    - local
+  script:
+    - go test ./... -v
+
