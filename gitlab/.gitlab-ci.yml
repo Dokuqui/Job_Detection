@@ -5,7 +5,7 @@ stages:
   - vet
   - security
   # - lint
-  - build
+  - docker-test
   - test
 
 before_script:
@@ -37,8 +37,9 @@ security:
     - go install golang.org/x/vuln/cmd/govulncheck@latest
     - govulncheck ./...
 
-build:
-  stage: build
+
+docker-compose-test-up:
+  stage: docker-test
   tags:
     - local
   services:
@@ -51,10 +52,141 @@ build:
   script:
     - echo "Starting Docker Compose..."
     - echo "JOB_ID:$CI_JOB_ID"
-    - docker-compose up -d
+    - docker-compose -f docker/docker-compose.yml up -d
     - echo "Docker Compose services started."
-    - docker-compose ps
-    - sleep 180  # Keep the job running for at least 3 minutes
+    - docker-compose -f docker/docker-compose.yml ps
+  when: manual
+
+docker-compose-test-down:
+  stage: docker-test
+  tags:
+    - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Installing Docker Compose..."
+    - apt-get update
+    - apt-get install -y wget curl docker-compose
+    - docker-compose version
+  script:
+    - echo "Starting Docker Compose..."
+    - echo "JOB_ID:$CI_JOB_ID"
+    - docker-compose -f docker/docker-compose.yml up -d
+    - echo "Docker Compose services started."
+    - docker-compose -f docker/docker-compose.yml ps
+  after_script:
+    - echo "Stopping Docker Compose..."
+    - docker-compose -f docker/docker-compose.yml down
+  when: manual
+
+docker-run-no-stop:
+  stage: docker-test
+  tags:
+    - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Setting up Docker environment..."
+    - docker info
+  script:
+    - echo "Running a Docker container..."
+    - docker run --name my-container -d my-image
+    - docker ps
+  when: manual
+
+docker-run-stop:
+  stage: docker-test
+  tags:
+    - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Setting up Docker environment..."
+    - docker info
+  script:
+    - echo "Running a Docker container..."
+    - docker run --name my-container -d my-image
+    - docker ps
+  after_script:
+    - echo "Stopping the Docker container..."
+    - docker stop my-container
+    - docker rm my-container
+  when: manual
+
+docker-run-fail:
+  stage: docker-test
+  tags:
+    - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Setting up Docker environment..."
+    - docker info
+  script:
+    - echo "Running a Docker container with intentional failure..."
+    - docker run --name my-container -d my-image
+    - "false"  # Intentional failure
+  after_script:
+    - echo "Stopping the Docker container after failure..."
+    - docker stop my-container
+    - docker rm my-container
+  when: manual
+  allow_failure: true
+
+service-run:
+  stage: docker-test
+  tags:
+    - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Setting up Docker Swarm..."
+    - docker info  # Ensure Docker is running and accessible
+    - docker swarm init || echo "Swarm is already initialized"
+  script:
+    - echo "Running a Docker service..."
+    - docker service create --name my-service --replicas 1 my-image
+    - docker service ls
+  when: manual
+
+service-run-stop:
+  stage: docker-test
+  tags:
+    - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Setting up Docker Swarm..."
+    - docker info  # Ensure Docker is running and accessible
+    - docker swarm init || echo "Swarm is already initialized"
+  script:
+    - echo "Running a Docker service..."
+    - docker service create --name my-service --replicas 1 my-image
+    - docker service ls
+  after_script:
+    - echo "Stopping the Docker service..."
+    - docker service rm my-service
+  when: manual
+
+service-run-fail:
+  stage: docker-test
+  tags:
+    - local
+  services:
+    - name: docker:dind
+  before_script:
+    - echo "Setting up Docker Swarm..."
+    - docker info  # Ensure Docker is running and accessible
+    - docker swarm init || echo "Swarm is already initialized"
+  script:
+    - echo "Running a Docker service with intentional failure..."
+    - docker service create --name my-service --replicas 1 my-image
+    - "false"  # Intentional failure
+  after_script:
+    - echo "Stopping the Docker service after failure..."
+    - docker service rm my-service
+  when: manual
+  allow_failure: true
 
 test:
   stage: test
