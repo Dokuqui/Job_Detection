@@ -24,7 +24,7 @@ func TestIsJobContainer(t *testing.T) {
 			name: "Container with matching job ID label",
 			container: types.Container{
 				Labels: map[string]string{
-					"com.gitlab.ci.job.id": "1234",
+					"com.github.ci.job.id": "1234",
 				},
 				Names: []string{"/other"},
 			},
@@ -44,7 +44,7 @@ func TestIsJobContainer(t *testing.T) {
 			name: "Container with non-matching job ID label and name",
 			container: types.Container{
 				Labels: map[string]string{
-					"com.gitlab.ci.job.id": "5678",
+					"com.github.ci.job.id": "5678",
 				},
 				Names: []string{"/5678"},
 			},
