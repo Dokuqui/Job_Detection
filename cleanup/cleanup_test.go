@@ -13,44 +13,117 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-// The function `TestIsDockerContainerManaged` tests whether a Docker container is managed by Docker
-// Compose based on its labels.
-func TestIsDockerContainerManaged(t *testing.T) {
+func TestIsJobContainer(t *testing.T) {
 	testCases := []struct {
-		name       string
-		containers []types.Container
-		expected   bool
+		name      string
+		container types.Container
+		jobID     string
+		expected  bool
 	}{
 		{
-			name: "Docker Compose managed container",
-			containers: []types.Container{
-				{
-					Labels: map[string]string{
-						"com.docker.compose.project": "example",
-					},
+			name: "Container with matching job ID label",
+			container: types.Container{
+				Labels: map[string]string{
+					"com.gitlab.ci.job.id": "1234",
 				},
+				Names: []string{"/other"},
 			},
+			jobID:    "1234",
 			expected: true,
 		},
 		{
-			name: "No Docker Compose managed containers",
-			containers: []types.Container{
-				{
-					Labels: map[string]string{},
-				},
+			name: "Container with matching job ID name",
+			container: types.Container{
+				Labels: map[string]string{},
+				Names:  []string{"/1234"},
 			},
+			jobID:    "1234",
+			expected: true,
+		},
+		{
+			name: "Container with non-matching job ID label and name",
+			container: types.Container{
+				Labels: map[string]string{
+					"com.gitlab.ci.job.id": "5678",
+				},
+				Names: []string{"/5678"},
+			},
+			jobID:    "1234",
 			expected: false,
 		},
 		{
-			name:       "Empty container list",
-			containers: []types.Container{},
-			expected:   false,
+			name: "Container with no job ID label and non-matching name",
+			container: types.Container{
+				Labels: map[string]string{},
+				Names:  []string{"/5678"},
+			},
+			jobID:    "1234",
+			expected: false,
+		},
+		{
+			name: "Container with no job ID label and name is empty string",
+			container: types.Container{
+				Labels: map[string]string{},
+				Names:  []string{""},
+			},
+			jobID:    "1234",
+			expected: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := IsDockerComposeManaged(tc.containers)
+			result := IsJobContainer(tc.container, tc.jobID)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestIsComposeContainer(t *testing.T) {
+	testCases := []struct {
+		name      string
+		container types.Container
+		expected  bool
+	}{
+		{
+			name: "Container with Docker Compose project label",
+			container: types.Container{
+				Labels: map[string]string{
+					"com.docker.compose.project": "example",
+				},
+				Names: []string{"/other"},
+			},
+			expected: true,
+		},
+		{
+			name: "Container with Compose-related name",
+			container: types.Container{
+				Labels: map[string]string{},
+				Names:  []string{"/example_app_1"},
+			},
+			expected: true,
+		},
+		{
+			name: "Container without Compose project label and name without underscore",
+			container: types.Container{
+				Labels: map[string]string{},
+				Names:  []string{"/other"},
+			},
+			expected: false,
+		},
+		{
+			name: "Container with name as empty string and no Compose project label",
+			container: types.Container{
+				Labels: map[string]string{},
+				Names:  []string{""},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsComposeContainer(tc.container)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

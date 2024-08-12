@@ -8,8 +8,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -19,168 +19,188 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// CleanUp performs cleanup tasks for the specified container ID, including stopping and removing containers, networks, and volumes.
+// CleanUp performs cleanup tasks for the specified job ID, including stopping and removing containers, networks, and volumes.
 //
 // Parameters:
 // - cli: The Docker client instance.
-// - containerID: The ID of the container to clean up.
-func CleanUp(cli *client.Client, containerID string) {
+// - jobID: The job ID associated with the job.
+func CleanUp(cli *client.Client, jobID string) {
 	log.Println("Starting cleanup...")
 
-	ctx := context.Background()
-	removeOptions := container.RemoveOptions{Force: true}
-	stopOptions := container.StopOptions{}
-
-	if containerID == "" {
+	if jobID == "" {
 		log.Println("No job ID provided, skipping cleanup.")
 		return
 	}
 
-	if IsDockerComposeUp(cli) {
-		log.Println("Docker Compose is managing containers. Running 'docker-compose down'...")
-		err := RunDockerComposeDown()
-		if err != nil {
-			log.Printf("Failed to run 'docker-compose down': %v", err)
+	ctx := context.Background()
+	removeOptions := container.RemoveOptions{Force: true}
+	stopOptions := container.StopOptions{Timeout: new(int)}
+	*stopOptions.Timeout = 10
+
+	// Clean up containers
+	containerErr := CleanupContainers(cli, ctx, jobID, removeOptions, stopOptions)
+
+	// Clean up networks
+	networkErr := CleanupNetworks(cli, ctx, jobID)
+
+	// Clean up volumes
+	volumeErr := CleanupVolumes(cli, ctx, jobID)
+
+	// Logs outputs
+	if containerErr == nil && networkErr == nil && volumeErr == nil {
+		log.Println("No resources found to clean up.")
+	} else {
+		log.Println("Cleanup completed with errors.")
+		if containerErr != nil {
+			log.Printf("Container cleanup error: %v", containerErr)
+		}
+		if networkErr != nil {
+			log.Printf("Network cleanup error: %v", networkErr)
+		}
+		if volumeErr != nil {
+			log.Printf("Volume cleanup error: %v", volumeErr)
 		}
 	}
-
-	if err := CleanupContainers(cli, ctx, containerID, removeOptions, stopOptions); err != nil {
-		log.Printf("Container cleanup failed: %v", err)
-	}
-
-	if err := CleanupNetworks(cli, ctx, containerID); err != nil {
-		log.Printf("Network cleanup failed: %v", err)
-	}
-
-	if err := CleanupVolumes(cli, ctx, containerID); err != nil {
-		log.Printf("Volume cleanup failed: %v", err)
-	}
-
-	log.Println("Cleanup completed.")
 }
 
-// CleanupContainers stops and removes containers associated with the specified container ID.
+// CleanupContainers stops and removes containers associated with the specified job ID.
 //
 // Parameters:
 // - cli: The Docker client instance.
 // - ctx: The context for API calls.
-// - containerID: The ID of the container to remove.
+// - jobID: The job ID associated with the job.
 // - removeOptions: Options for removing containers.
 // - stopOptions: Options for stopping containers.
 //
 // Returns:
 // - error: An error if container cleanup fails.
-func CleanupContainers(cli *client.Client, ctx context.Context, containerID string, removeOptions container.RemoveOptions, stopOptions container.StopOptions) error {
+func CleanupContainers(cli *client.Client, ctx context.Context, jobID string, removeOptions container.RemoveOptions, stopOptions container.StopOptions) error {
 	containers, err := cli.ContainerList(ctx, container.ListOptions{All: true})
 	if err != nil {
 		return fmt.Errorf("failed to list containers: %w", err)
 	}
 
+	cleaned := false
 	for _, container := range containers {
-		if container.Labels["com.github.ci.job.id"] == containerID {
+		if IsJobContainer(container, jobID) || IsComposeContainer(container) {
+			cleaned = true
+			// Stop the container if it is running
 			if container.State == "running" {
-				if err := cli.ContainerStop(ctx, container.ID, stopOptions); err != nil {
+				log.Printf("Stopping container %s", container.ID)
+				err := cli.ContainerStop(ctx, container.ID, stopOptions)
+				if err != nil {
 					log.Printf("Failed to stop container %s: %v", container.ID, err)
-					continue
+					continue // Proceed to the next container
 				}
 			}
-			if err := cli.ContainerRemove(ctx, container.ID, removeOptions); err != nil {
+
+			// Remove the container
+			log.Printf("Removing container %s", container.ID)
+			err := cli.ContainerRemove(ctx, container.ID, removeOptions)
+			if err != nil {
 				log.Printf("Failed to remove container %s: %v", container.ID, err)
 			}
 		}
 	}
+
+	if !cleaned {
+		log.Println("No containers found to clean up.")
+		return nil
+	}
 	return nil
 }
 
-// CleanupNetworks removes networks associated with the specified container ID.
+// CleanupNetworks removes networks associated with the specified job ID.
 //
 // Parameters:
 // - cli: The Docker client instance.
 // - ctx: The context for API calls.
-// - containerID: The ID of the container.
+// - jobID: The job ID associated with the job.
 //
 // Returns:
 // - error: An error if network cleanup fails.
-func CleanupNetworks(cli *client.Client, ctx context.Context, containerID string) error {
-	networks, err := cli.NetworkList(ctx, network.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list networks: %w", err)
-	}
+func CleanupNetworks(cli *client.Client, ctx context.Context, jobID string) error {
+	const maxRetries = 5
+	const retryDelay = 2 * time.Second
 
-	for _, network := range networks {
-		if len(network.Containers) == 0 && network.Labels["com.github.ci.job.id"] == containerID {
-			if err := cli.NetworkRemove(ctx, network.ID); err != nil {
-				log.Printf("Failed to remove network %s: %v", network.ID, err)
+	for retry := 0; retry < maxRetries; retry++ {
+		networks, err := cli.NetworkList(ctx, network.ListOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to list networks: %w", err)
+		}
+
+		cleaned := false
+		for _, network := range networks {
+			if strings.Contains(network.Name, jobID) || strings.Contains(network.Name, "docker_default") {
+				cleaned = true
+				log.Printf("Removing network %s", network.ID)
+				if err := cli.NetworkRemove(ctx, network.ID); err != nil {
+					log.Printf("Failed to remove network %s: %v", network.ID, err)
+				} else {
+					log.Printf("Network %s removed successfully.", network.ID)
+				}
 			}
 		}
+
+		if cleaned {
+			return nil
+		}
+
+		if retry < maxRetries-1 {
+			log.Printf("No networks found, retrying in %s...", retryDelay)
+			time.Sleep(retryDelay)
+		} else {
+			log.Println("No networks found to clean up.")
+			return nil
+		}
 	}
+
 	return nil
 }
 
-// CleanupVolumes removes volumes associated with the specified container ID.
+// CleanupVolumes removes volumes associated with the specified job ID.
 //
 // Parameters:
 // - cli: The Docker client instance.
 // - ctx: The context for API calls.
-// - containerID: The ID of the container.
+// - jobID: The job ID associated with the job.
 //
 // Returns:
 // - error: An error if volume cleanup fails.
-func CleanupVolumes(cli *client.Client, ctx context.Context, containerID string) error {
+func CleanupVolumes(cli *client.Client, ctx context.Context, jobID string) error {
 	volumeFilter := filters.NewArgs()
-	volumeFilter.Add("label", fmt.Sprintf("com.github.ci.job.id=%s", containerID))
+	volumeFilter.Add("name", fmt.Sprintf(".*%s.*", jobID))
 
 	volumes, err := cli.VolumeList(ctx, volume.ListOptions{Filters: volumeFilter})
 	if err != nil {
 		return fmt.Errorf("failed to list volumes: %w", err)
 	}
 
+	cleaned := false
 	for _, volume := range volumes.Volumes {
-		if volume.Labels["com.github.ci.job.id"] == containerID {
-			if err := cli.VolumeRemove(ctx, volume.Name, true); err != nil {
-				log.Printf("Failed to remove volume %s: %v", volume.Name, err)
-			}
+		cleaned = true
+		log.Printf("Removing volume %s", volume.Name)
+		if err := cli.VolumeRemove(ctx, volume.Name, true); err != nil {
+			log.Printf("Failed to remove volume %s: %v", volume.Name, err)
 		}
+	}
+
+	if !cleaned {
+		log.Println("No volumes found to clean up.")
+		return nil
 	}
 	return nil
 }
 
-// IsDockerComposeUp checks if Docker Compose is managing any containers.
-//
-// Parameters:
-// - cli: The Docker client instance.
-//
-// Returns:
-// - bool: True if Docker Compose is managing containers; otherwise, false.
-func IsDockerComposeUp(cli *client.Client) bool {
-	ctx := context.Background()
-	containers, err := cli.ContainerList(ctx, container.ListOptions{All: true})
-	if err != nil {
-		log.Printf("Failed to list containers: %v", err)
-		return false
-	}
-
-	return IsDockerComposeManaged(containers)
+// The function `IsJobContainer` checks if a container is associated with a specific job ID based on
+// its labels and names.
+func IsJobContainer(container types.Container, jobID string) bool {
+	return container.Labels["com.github.ci.job.id"] == jobID || container.Names[0] == fmt.Sprintf("/%s", jobID)
 }
 
-// The function `IsDockerComposeManaged` checks if any container in a list has the label
-// "com.docker.compose.project" indicating it is managed by Docker Compose.
-func IsDockerComposeManaged(containers []types.Container) bool {
-	for _, container := range containers {
-		if _, ok := container.Labels["com.docker.compose.project"]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-// RunDockerComposeDown executes the 'docker-compose down' command to stop and remove Docker Compose-managed containers.
-//
-// Returns:
-// - error: An error if the command fails to execute.
-func RunDockerComposeDown() error {
-	cmd := exec.Command("docker-compose", "down")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+// The IsComposeContainer function checks if a Docker container is part of a Compose project based on
+// its labels and name.
+func IsComposeContainer(container types.Container) bool {
+	// Docker Compose containers often have labels like 'com.docker.compose.project'
+	return container.Labels["com.docker.compose.project"] != "" || strings.Contains(container.Names[0], "_")
 }
