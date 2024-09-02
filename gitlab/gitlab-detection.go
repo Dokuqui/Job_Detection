@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/client"
+	"job-detection.is/github-gitlab/events"
 )
 
 // main is the entry point of the application. It:
@@ -30,7 +31,7 @@ import (
 // 3. Starts monitoring Docker events in a separate goroutine.
 // 4. Handles system signals (SIGINT, SIGTERM) for graceful shutdown.
 func main() {
-	config, err := LoadConfig("../patterns/jobPatterns.json")
+	config, err := events.LoadConfig("jobPattern.json")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -40,13 +41,13 @@ func main() {
 		log.Fatalf("Failed to create Docker client: %v", err)
 	}
 
-	eventCh, errCh := MonitorContainerEvents(cli)
+	eventCh, errCh := events.MonitorContainerEvents(cli)
 
 	go func() {
 		for {
 			select {
 			case event := <-eventCh:
-				HandleEvent(cli, event, config.JobPatterns)
+				events.HandleEvent(cli, event, config.JobPatterns)
 			case err := <-errCh:
 				log.Printf("Error in Docker event monitoring: %v", err)
 			}

@@ -140,7 +140,7 @@ func IsJobPattern(cli *client.Client, containerID string, jobPatterns []string) 
 	return MatchContainerName(containerJSON.Name, jobPatterns)
 }
 
-// The MatchContainerName function checks if a container name matches any of the provided job patterns
+// MatchContainerName function checks if a container name matches any of the provided job patterns
 // using regular expressions.
 func MatchContainerName(containerName string, jobPatterns []string) bool {
 	for _, pattern := range jobPatterns {

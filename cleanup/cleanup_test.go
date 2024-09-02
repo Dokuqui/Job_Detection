@@ -83,6 +83,7 @@ func TestIsComposeContainer(t *testing.T) {
 	testCases := []struct {
 		name      string
 		container types.Container
+		jobID     string
 		expected  bool
 	}{
 		{
@@ -93,6 +94,7 @@ func TestIsComposeContainer(t *testing.T) {
 				},
 				Names: []string{"/other"},
 			},
+			jobID:    "1234",
 			expected: true,
 		},
 		{
@@ -101,6 +103,7 @@ func TestIsComposeContainer(t *testing.T) {
 				Labels: map[string]string{},
 				Names:  []string{"/example_app_1"},
 			},
+			jobID:    "1234",
 			expected: true,
 		},
 		{
@@ -109,6 +112,7 @@ func TestIsComposeContainer(t *testing.T) {
 				Labels: map[string]string{},
 				Names:  []string{"/other"},
 			},
+			jobID:    "1234",
 			expected: false,
 		},
 		{
@@ -117,13 +121,14 @@ func TestIsComposeContainer(t *testing.T) {
 				Labels: map[string]string{},
 				Names:  []string{""},
 			},
+			jobID:    "1234",
 			expected: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := IsComposeContainer(tc.container)
+			result := IsComposeContainer(tc.container, tc.jobID)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

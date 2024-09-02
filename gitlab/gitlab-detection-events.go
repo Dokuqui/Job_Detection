@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"job-detection.is/github-gitlab/cleanup"
 )
 
 // Config holds the configuration for job patterns.
@@ -111,7 +112,7 @@ func HandleEvent(cli *client.Client, event events.Message, jobPatterns []string)
 		log.Printf("GitLab job container %s started.\n", event.ID)
 	case "die":
 		log.Printf("GitLab job container %s finished.\n", event.ID)
-		CleanUp(cli, event.ID)
+		cleanup.CleanUp(cli, event.ID)
 	}
 }
 

@@ -21,10 +21,13 @@ func TestLoadConfig(t *testing.T) {
 			"^/runner-.*-project-.*-concurrent-.*-.*-build$",
 			"^/runner-.*-project-.*-concurrent-.*-.*-test$",
 			"^/runner-.*-project-.*-concurrent-.*-.*-deploy$",
+			"^/runner-.*-project-.*-concurrent-.*-.*-format$",
+			"^/runner-.*-project-.*-concurrent-.*-.*-vet$",
+			"^/runner-.*-project-.*-concurrent-.*-.*-security$",
 		},
 	}
 
-	config, err := LoadConfig("../patterns/jobPattern.json")
+	config, err := LoadConfig("../jobPattern.json")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedConfig, config)
 }

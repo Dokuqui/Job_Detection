@@ -14,8 +14,13 @@ type Config struct {
 	JobPatterns []string `json:"jobPattern"`
 }
 
+// main is the entry point of the application. It:
+// 1. Loads configuration from "jobPattern.json".
+// 2. Creates a Docker client with environment variables.
+// 3. Starts monitoring Docker events in a separate goroutine.
+// 4. Handles system signals (SIGINT, SIGTERM) for graceful shutdown.
 func main() {
-	config, err := events.LoadConfig("jobPattern.json")
+	config, err := events.LoadConfig("../patterns/jobPattern.json")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
