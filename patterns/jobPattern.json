@@ -2,6 +2,9 @@
     "jobPattern" : [
         "^/runner-.*-project-.*-concurrent-.*-.*-build$",
         "^/runner-.*-project-.*-concurrent-.*-.*-test$",
-        "^/runner-.*-project-.*-concurrent-.*-.*-deploy$"
+        "^/runner-.*-project-.*-concurrent-.*-.*-deploy$",
+        "^/runner-.*-project-.*-concurrent-.*-.*-format$",
+        "^/runner-.*-project-.*-concurrent-.*-.*-vet$",
+        "^/runner-.*-project-.*-concurrent-.*-.*-security$"
     ]
 }

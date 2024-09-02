@@ -27,7 +27,7 @@ func TestLoadConfig(t *testing.T) {
 		},
 	}
 
-	config, err := LoadConfig("../jobPattern.json")
+	config, err := LoadConfig("../patterns/jobPattern.json")
 	assert.NoError(t, err)
 	assert.Equal(t, expectedConfig, config)
 }
